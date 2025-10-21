@@ -2,42 +2,41 @@ name: Build WinForms EXEs
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
 
 jobs:
   build:
     runs-on: windows-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v3
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      # 解压上传到仓库根目录的 5 个 zip（作业4-1.zip ~ 作业4-5.zip）
-      - name: Unzip all project zips
+      # 如果你已上传 5 个 zip（作业4-1.zip ~ 作业4-5.zip），先解压
+      - name: Unzip project zips (if any)
         shell: pwsh
         run: |
-          Get-ChildItem -Path . -Filter *.zip | ForEach-Object {
+          Get-ChildItem -Filter *.zip | ForEach-Object {
             Write-Host "Unzipping $($_.Name)"
             Expand-Archive -Path $_.FullName -DestinationPath .
           }
-          Write-Host "After unzip:"
+
+      - name: List found vbproj
+        shell: pwsh
+        run: |
+          Write-Host "VBPROJ files:"
           Get-ChildItem -Recurse -Filter *.vbproj | Select-Object -ExpandProperty FullName
 
-      # 递归查找并编译所有 .vbproj
-      - name: Locate and build all VB projects
+      - name: Build ALL vbproj (turn off auto-include)
         shell: cmd
         run: |
-          echo Searching for VB project files...
           for /r %%f in (*.vbproj) do (
-            echo Building %%f
-            msbuild "%%f" /p:Configuration=Release /m
+            echo ===== Building %%f =====
+            msbuild "%%f" /p:Configuration=Release /p:EnableDefaultCompileItems=false /m
           )
 
-      # 收集并按要求改名 3-1.exe ~ 3-5.exe（如果匹配不到就忽略）
-      - name: Collect and rename EXEs
+      - name: Collect EXEs and rename
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path out -Force | Out-Null
@@ -54,12 +53,11 @@ jobs:
             } | Select-Object -First 1
             if ($exe) {
               Copy-Item $exe.FullName (Join-Path "out" $map[$k]) -Force
-              Write-Host "Collected $($exe.FullName) -> out\$($map[$k])"
+              Write-Host "OK: $($exe.FullName) -> out\$($map[$k])"
             } else {
-              Write-Host "WARN: Could not find Release exe for $k"
+              Write-Host "SKIP: no Release exe for $k"
             }
           }
-          Write-Host "OUT DIR CONTENTS:"; Get-ChildItem out
 
       - name: Upload EXEs
         uses: actions/upload-artifact@v4
