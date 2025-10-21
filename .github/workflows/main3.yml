@@ -1,0 +1,74 @@
+name: Build WinForms EXEs
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      # 解压根目录下的作业 zip
+      - name: Unzip all project zips
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path . -Filter *.zip | ForEach-Object {
+            Write-Host "Unzipping $($_.Name)"
+            Expand-Archive -Path $_.FullName -DestinationPath .
+          }
+
+      # 修复 NETSDK1022（重复包含 Compile）
+      - name: Fix vbproj duplicate include issue
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Filter *.vbproj | ForEach-Object {
+            Write-Host "Patching $($_.FullName)..."
+            (Get-Content $_.FullName) -replace '<Import Project="[^"]*Microsoft\.VB\.targets" />', '<PropertyGroup><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup>`n<Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />' | Set-Content $_.FullName
+          }
+
+      # 编译所有 vbproj
+      - name: Locate and build all VB projects
+        shell: cmd
+        run: |
+          echo Searching for VB project files...
+          for /r %%f in (*.vbproj) do (
+            echo Building %%f
+            msbuild "%%f" /p:Configuration=Release /m
+          )
+
+      # 收集并重命名为 3-1.exe ~ 3-5.exe
+      - name: Collect and rename EXEs
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path out -Force | Out-Null
+          $map = @{
+            "作业4-1" = "3-1.exe"
+            "作业4-2" = "3-2.exe"
+            "作业4-3" = "3-3.exe"
+            "作业4-4" = "3-4.exe"
+            "作业4-5" = "3-5.exe"
+          }
+          foreach ($k in $map.Keys) {
+            $exe = Get-ChildItem -Recurse -Filter *.exe | Where-Object {
+              $_.FullName -match [Regex]::Escape($k) -and $_.FullName -match "\\bin\\Release\\"
+            } | Select-Object -First 1
+            if ($exe) {
+              Copy-Item $exe.FullName (Join-Path "out" $map[$k]) -Force
+              Write-Host "Collected $($exe.FullName) -> out\$($map[$k])"
+            } else {
+              Write-Host "WARN: Could not find Release exe for $k"
+            }
+          }
+
+      - name: Upload EXEs
+        uses: actions/upload-artifact@v4
+        with:
+          name: EXE_Files
+          path: out/*.exe
