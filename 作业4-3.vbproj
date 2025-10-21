@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>作业4-3</RootNamespace>
+    <AssemblyName>3-3</AssemblyName>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <StartupObject>Module1</StartupObject>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Form1.vb" />
+    <Compile Include="My Project\AssemblyInfo.vb" />
+  </ItemGroup>
+</Project>
