@@ -1,0 +1,42 @@
+name: Build WinForms EXEs
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build 作业4-1
+        run: msbuild "作业4-1/作业4-1.vbproj" /p:Configuration=Release /m
+
+      - name: Build 作业4-2
+        run: msbuild "作业4-2/作业4-2.vbproj" /p:Configuration=Release /m
+
+      - name: Build 作业4-3
+        run: msbuild "作业4-3/作业4-3.vbproj" /p:Configuration=Release /m
+
+      - name: Build 作业4-4
+        run: msbuild "作业4-4/作业4-4.vbproj" /p:Configuration=Release /m
+
+      - name: Build 作业4-5
+        run: msbuild "作业4-5/作业4-5.vbproj" /p:Configuration=Release /m
+
+      - name: Upload EXEs
+        uses: actions/upload-artifact@v4
+        with:
+          name: EXE_Files
+          path: |
+            作业4-1/bin/Release/*.exe
+            作业4-2/bin/Release/*.exe
+            作业4-3/bin/Release/*.exe
+            作业4-4/bin/Release/*.exe
+            作业4-5/bin/Release/*.exe
