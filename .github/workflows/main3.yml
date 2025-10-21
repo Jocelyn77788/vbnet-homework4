@@ -15,7 +15,6 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      # 解压根目录下的作业 zip
       - name: Unzip all project zips
         shell: pwsh
         run: |
@@ -24,17 +23,20 @@ jobs:
             Expand-Archive -Path $_.FullName -DestinationPath .
           }
 
-      # 修复 NETSDK1022（重复包含 Compile）
-      - name: Fix vbproj duplicate include issue
+      # ✅ 关键：自动修复每个 vbproj 里的重复编译项问题
+      - name: Fix NETSDK1022 duplicate compile issue
         shell: pwsh
         run: |
           Get-ChildItem -Recurse -Filter *.vbproj | ForEach-Object {
-            Write-Host "Patching $($_.FullName)..."
-            (Get-Content $_.FullName) -replace '<Import Project="[^"]*Microsoft\.VB\.targets" />', '<PropertyGroup><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup>`n<Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />' | Set-Content $_.FullName
+            Write-Host "Fixing duplicate includes in $($_.FullName)"
+            $content = Get-Content $_.FullName -Raw
+            if ($content -notmatch "<EnableDefaultCompileItems>") {
+              $content = $content -replace "(?<=<PropertyGroup>)", "<EnableDefaultCompileItems>false</EnableDefaultCompileItems>"
+              Set-Content -Path $_.FullName -Value $content -Encoding UTF8
+            }
           }
 
-      # 编译所有 vbproj
-      - name: Locate and build all VB projects
+      - name: Build all VB projects
         shell: cmd
         run: |
           echo Searching for VB project files...
@@ -43,7 +45,6 @@ jobs:
             msbuild "%%f" /p:Configuration=Release /m
           )
 
-      # 收集并重命名为 3-1.exe ~ 3-5.exe
       - name: Collect and rename EXEs
         shell: pwsh
         run: |
@@ -61,9 +62,9 @@ jobs:
             } | Select-Object -First 1
             if ($exe) {
               Copy-Item $exe.FullName (Join-Path "out" $map[$k]) -Force
-              Write-Host "Collected $($exe.FullName) -> out\$($map[$k])"
+              Write-Host "✅ Collected $($exe.FullName) -> out\$($map[$k])"
             } else {
-              Write-Host "WARN: Could not find Release exe for $k"
+              Write-Host "⚠️ WARN: Could not find Release exe for $k"
             }
           }
 
