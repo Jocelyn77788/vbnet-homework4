@@ -16,10 +16,10 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: Locate and build all VB projects
+        shell: cmd
         run: |
-          echo "Searching for VB project files..."
-          dir /s /b *.vbproj
-          for /f "delims=" %%f in ('dir /s /b *.vbproj') do (
+          echo Searching for VB project files...
+          for /r %%f in (*.vbproj) do (
             echo Building %%f
             msbuild "%%f" /p:Configuration=Release /m
           )
