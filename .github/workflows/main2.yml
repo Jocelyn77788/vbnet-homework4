@@ -1,0 +1,32 @@
+name: Build WinForms EXEs
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Locate and build all VB projects
+        shell: cmd
+        run: |
+          echo Searching for VB project files...
+          for /r %%f in (*.vbproj) do (
+            echo Building %%f
+            msbuild "%%f" /p:Configuration=Release /m
+          )
+
+      - name: Upload EXEs
+        uses: actions/upload-artifact@v4
+        with:
+          name: EXE_Files
+          path: |
+            **/bin/Release/*.exe
