@@ -15,6 +15,18 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
+      # 解压上传到仓库根目录的 5 个 zip（作业4-1.zip ~ 作业4-5.zip）
+      - name: Unzip all project zips
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path . -Filter *.zip | ForEach-Object {
+            Write-Host "Unzipping $($_.Name)"
+            Expand-Archive -Path $_.FullName -DestinationPath .
+          }
+          Write-Host "After unzip:"
+          Get-ChildItem -Recurse -Filter *.vbproj | Select-Object -ExpandProperty FullName
+
+      # 递归查找并编译所有 .vbproj
       - name: Locate and build all VB projects
         shell: cmd
         run: |
@@ -24,9 +36,33 @@ jobs:
             msbuild "%%f" /p:Configuration=Release /m
           )
 
+      # 收集并按要求改名 3-1.exe ~ 3-5.exe（如果匹配不到就忽略）
+      - name: Collect and rename EXEs
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path out -Force | Out-Null
+          $map = @{
+            "作业4-1" = "3-1.exe"
+            "作业4-2" = "3-2.exe"
+            "作业4-3" = "3-3.exe"
+            "作业4-4" = "3-4.exe"
+            "作业4-5" = "3-5.exe"
+          }
+          foreach ($k in $map.Keys) {
+            $exe = Get-ChildItem -Recurse -Filter *.exe | Where-Object {
+              $_.FullName -match [Regex]::Escape($k) -and $_.FullName -match "\\bin\\Release\\"
+            } | Select-Object -First 1
+            if ($exe) {
+              Copy-Item $exe.FullName (Join-Path "out" $map[$k]) -Force
+              Write-Host "Collected $($exe.FullName) -> out\$($map[$k])"
+            } else {
+              Write-Host "WARN: Could not find Release exe for $k"
+            }
+          }
+          Write-Host "OUT DIR CONTENTS:"; Get-ChildItem out
+
       - name: Upload EXEs
         uses: actions/upload-artifact@v4
         with:
           name: EXE_Files
-          path: |
-            **/bin/Release/*.exe
+          path: out/*.exe
